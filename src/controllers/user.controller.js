@@ -2,6 +2,7 @@ import { asyncHandller } from "../utils/asyncHandller.js";
 import { error,success } from "../utils/responseWrapper.js";
 import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
+import jwt from "jsonwebtoken"
 
 const generateAccessTokenAndRefreshToken=asyncHandller(async(_id)=>{
     const user=await User.findById(_id)
@@ -107,4 +108,37 @@ export const logoutUser=async(req,res)=>{
     .clearCookie("accessToken",options)
     .clearCookie("refreshToken",options)
     .json(success(200,"User has been logged out."))
+}
+
+export const incomingRefreshToken=async(req,res)=>{
+        
+    const incomingToken=req.body?.refreshToken||req.cookies?.refreshToken
+    if(!incomingToken) res.status(200).json(error(400,"Refresh token not found"))
+
+    const decoded=await jwt.verify(incomingToken,process.env.REFRESH_TOKEN_SECRET)
+    if(!decoded) res.status(200).json(error(400,"Invalid Refresh Token"))
+    
+    const user=await User.findById(decoded._id)
+    if(user.refreshToken===incomingToken){
+    
+        const accessToken=await user.generateAccessToken()
+        const newRefreshToken=await user.generateRefreshToken()
+        await User.findByIdAndUpdate(decoded._id,
+            {
+                $set:{
+                    refreshToken:newRefreshToken 
+                }
+            },
+            {
+                new:true
+            })
+        const options={
+                httpOnly:true,
+                secure:true
+        }    
+        res.status(200)
+        .cookie("accessToken",accessToken,options)  
+        .cookie("refreshToken",newRefreshToken,options)  
+        .json(success(200,"access token granted"))
+    }
 }
