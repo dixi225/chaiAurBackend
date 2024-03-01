@@ -3,6 +3,19 @@ import { error,success } from "../utils/responseWrapper.js";
 import {User} from "../models/user.model.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 
+const generateAccessTokenAndRefreshToken=asyncHandller(async(_id)=>{
+    const user=await User.findById(_id)
+
+    const accessToken=await user.generateAccessToken()
+    const refreshToken=await user.generateRefreshToken()
+
+    user.refreshToken=refreshToken
+    await user.save({validateBeforeSave:false})
+
+    return {
+        accessToken,refreshToken
+    }
+})
 
 export const registerUser=asyncHandller(async(req,res)=>{
     const{userName,fullName,email,password}=req.body    
@@ -13,7 +26,7 @@ export const registerUser=asyncHandller(async(req,res)=>{
 
     //if user already exists 
 
-    const existingUser=User.findOne({
+    const existingUser=await User.findOne({
         $or:[ { userName },{ email }]
     })
 
@@ -43,5 +56,55 @@ export const registerUser=asyncHandller(async(req,res)=>{
 
     if(!returnUser) res.status(200).json(error(500,"Server Error"))
 
-    res.status(200).json(success(returnUser))
+    res.status(200).json(success(200,returnUser))
 })
+
+export const loginUser=asyncHandller(async(req,res)=>{
+    const{email,userName,password}=req.body
+
+    if(!email||!userName) res.status(200).json(error(400,"fill all the credentials"))
+
+    const user=await User.findOne({
+        $or:[{email} , {userName}]
+    })
+
+    if(!user) res.status(200).json(error(400,"User doesn't fonud"))
+
+    const isPasswordValid=await user.isPasswordCorrect(password)
+
+    if(!isPasswordValid) res.status(200).json(error(400,"Password invalid"))
+
+    const{accessToken,refreshToken}=await generateAccessTokenAndRefreshToken(user._id)
+
+    const loggedinUser=await User.findById(user._id).select("-password -refreshToken")
+
+    const options={
+        httpOnly:true,
+        secure:true
+    }
+
+    res.status(200)
+    .cookies("accessToken",accessToken,options)
+    .cookies("refreshToken",refreshToken,options)
+    .json(success(200,loggedinUser))
+})
+
+export const logoutUser=async(req,res)=>{
+    const{_id}=req.body
+    await User.findByIdAndUpdate(_id,{
+        $set:{
+            refreshToken:undefined
+        }
+    },
+    {
+        new:true
+    })
+    const options={
+        httpOnly:true,
+        secure:true
+    }
+    res.status(200)
+    .clearCookie("accessToken",options)
+    .clearCookie("refreshToken",options)
+    .json(success(200,"User has been logged out."))
+}
