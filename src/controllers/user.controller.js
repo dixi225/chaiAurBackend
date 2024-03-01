@@ -62,7 +62,7 @@ export const registerUser=asyncHandller(async(req,res)=>{
 export const loginUser=asyncHandller(async(req,res)=>{
     const{email,userName,password}=req.body
 
-    if(!email||!userName) res.status(200).json(error(400,"fill all the credentials"))
+    if(!email&&!userName) res.status(200).json(error(400,"fill all the credentials"))
 
     const user=await User.findOne({
         $or:[{email} , {userName}]
