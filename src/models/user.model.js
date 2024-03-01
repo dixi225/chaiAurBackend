@@ -18,7 +18,7 @@ const userSchema=new mongoose.Schema({
         lowercase:true,
         trim:true,
     },
-    username:{
+    fullname:{
         type:String,
         required:true,
         trim:true,
@@ -26,6 +26,7 @@ const userSchema=new mongoose.Schema({
     },
     avatar:{
         type:String,//cloudnary
+        required:true
     },
     coverImage:{
         type:String,
