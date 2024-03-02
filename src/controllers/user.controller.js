@@ -143,4 +143,24 @@ export const incomingRefreshToken=async(req,res)=>{
     }
 }
 
+export const changeCurrentPassword=asyncHandller(async(req,res)=>{
     
+    const user=await User.findById(req._id)
+    const {oldPassword,newPassword}=req.body    
+
+    const isPasswordSame=await user.isPasswordCorrect(oldPassword)
+    
+    if(!isPasswordSame){
+        res.status(200).json(success(400,"Password not matched"))
+    }
+
+    user.password=newPassword
+    await user.save()
+    res.status(200).json(success(200,"Password Updated"))
+})
+
+export const getCurrentUser=asyncHandller(async(req,res)=>{
+    const user=await User.findById(req._id).select("-password -refreshToken")
+    res.status(200).json(success(200,user))
+})
+
