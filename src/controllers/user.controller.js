@@ -164,3 +164,19 @@ export const getCurrentUser=asyncHandller(async(req,res)=>{
     res.status(200).json(success(200,user))
 })
 
+export const updateAvatar=asyncHandller(async(req,res)=>{
+    const avatarLocalFilePath=req.file.path
+    if(!avatarLocalFilePath) res.status(200).json(error(400,"Avatar file missing"))
+    
+    const avatar=await uploadOnCloudinary(avatarLocalFilePath)
+
+    const user=await User.findByIdAndUpdate(req._id,{
+        $set:{
+            avatar:avatar.url,
+        }
+    },{
+        new:true
+    }).select("-password -refreshToken")
+
+    res.status(200).json(success(200,user))
+})
